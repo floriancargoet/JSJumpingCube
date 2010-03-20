@@ -1,9 +1,11 @@
 var Cell = function(options){
     this.limit = options.limit;
+    this.owner = options.owner;
     this.dots = 1;
 }
 Cell.prototype = {
-    addDot : function(){
+    addDot : function(owner){
+        this.owner = owner;
         this.dots++;
     },
     getOverFlowDots : function(){
@@ -12,6 +14,7 @@ Cell.prototype = {
         return of;
     },
     toString : function(){
-        return this.dots;
+        var firstLetter = this.owner ? this.owner[0]:'';
+        return ""+this.dots+firstLetter;
     }
 };

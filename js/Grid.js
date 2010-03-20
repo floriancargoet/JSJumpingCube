@@ -1,7 +1,6 @@
 var Grid = function(options){
     this.col = options.col;
     this.row = options.row;
-    this.target = options.target;
     
     this.createCells();
     this.computeMaxDots();
@@ -41,7 +40,13 @@ Grid.prototype = {
             }
         }
     },
-    propagate : function(){
+    propagate : function(run){
+        if(run>100){
+            throw {
+                type:'error',
+                error:'Too much recursion'
+            };
+        }
         var changed = false;
         var i,l;
         for(i=0, l=this.col;i!=l;i++){
@@ -49,26 +54,54 @@ Grid.prototype = {
             for(j=0, k=this.row;j!=k;j++){
                 var cell = this.cells[i][j];
                 var of = cell.getOverFlowDots();//return 'limit' dots if more than 'limit' is stored and unstore these dots
+                var owner = cell.owner;
                 if(of>0){
                     var neighborCells = this.findNeighbors(i,j);
                     for(var nc=0, nl = neighborCells.length; nc!=nl; nc++){
                         if(this.countDots() >= this.maxDots){
                             //we diverge before that !
                             //but do we always win before divergence ?
-                            //event
-                            return;
+                            throw {
+                                type:'error',
+                                error:'Grid full'
+                            };
                         }
                         changed = true;
-                        neighborCells[nc].addDot();
-
+                        neighborCells[nc].addDot(owner);
+                        var winner = this.checkVictory();
+                        if(winner){
+                            throw {
+                                type:'gameover',
+                                winner:winner
+                            };
+                        }
                     }
                 }
             }
         }
         //recursively
         if(changed){
-            this.propagate();
+            return this.propagate(run+1);
         }
+        return run;
+    },
+    checkVictory : function(){
+        var nextOwner,
+            winner = this.cells[0][0].owner;
+        if(winner == undefined){
+            return;
+        }
+        var i,l;
+        for(i=0, l=this.col;i!=l;i++){
+            var j,k;
+            for(j=0, k=this.row;j!=k;j++){
+                nextOwner = this.cells[i][j].owner;
+                if(winner != nextOwner){
+                    return;
+                }
+            }
+        }
+        return winner;
     },
     findNeighbors : function(col, row){
         var neighbors=[], neighbor,
