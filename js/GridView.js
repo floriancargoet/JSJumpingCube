@@ -1,7 +1,14 @@
 var GridView = function(options){
     this.grid   = options.grid;
     this.target = $(options.target);
-}
+    this.colors = {};
+    this.p1 = options.p1;
+    this.p2 = options.p2;
+    this.colors[this.p1.name] = this.p1.color || 'yellow';
+    this.colors[this.p2.name] = this.p2.color || 'lightgreen';
+    this.currentPlayer = this.p1;
+};
+
 GridView.prototype = {
     clickCell : function(player, row, col){//or (player, cell)
         if(row instanceof Cell){
@@ -19,6 +26,8 @@ GridView.prototype = {
                 case 'gameover':
                     console.info(e.winner+' wins!');
                     break;
+                default :
+                    console.error(e);
             }
         }
     },
@@ -43,6 +52,7 @@ GridView.prototype = {
                 var $cell = $row.children('td:nth-child('+(j+1)+')');
                 var cell = this.grid.cells[i][j];
                 $cell.html(cell.dots);
+                $cell.css('background-color', this.colors[cell.owner]);
             }
         }
     },
@@ -50,7 +60,8 @@ GridView.prototype = {
         var that = this;
         this.target.delegate('td', 'click', function(event){
             var cell = $(event.target).data('cell');
-            that.clickCell('flo', cell);
+            that.clickCell(that.currentPlayer.name, cell);
+            that.currentPlayer = (that.currentPlayer == that.p1 ? that.p2 : that.p1);
             that.refresh();
         });
     }

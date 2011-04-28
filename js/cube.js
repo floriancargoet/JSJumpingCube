@@ -6,7 +6,13 @@ $(function(){
 
     var gridView = new GridView({
         target : '#grid',
-        grid   : grid
+        grid   : grid,
+        p1 : {
+            name : 'flo'
+        },
+        p2 : {
+            name : 'olaf'
+        }
     });
     gridView.render();
     gridView.setupClick();

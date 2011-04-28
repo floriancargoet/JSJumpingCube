@@ -49,13 +49,17 @@ table {
     border-spacing: 0;
 }
 
-
+#grid {
+    margin : 50px;
+}
 #grid table td {
     width:40px;
-    border-style:none solid solid none;
+    border-style:solid;
     border-width:1px;
     border-color:black;
     padding : 0;
+    text-align: center;
+    line-height: 40px;
 }
 #grid table tr {
     height:41px;

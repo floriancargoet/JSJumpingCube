@@ -3,118 +3,94 @@ var Grid = function(options){
     this.row = options.row;
     
     this.createCells();
-    this.computeMaxDots();
 }
 
 Grid.prototype = {
-    computeMaxDots : function(){
-        this.maxDots = 2*4 + 3*((this.row-2)*2 +(this.col-2)*2) +4*((this.row-2)*(this.col-2));
-    },
-    countDots : function(){
-        var dots = 0;
-        for(i=0, l=this.col;i!=l;i++){
-            var j,k;
-            for(j=0, k=this.row;j!=k;j++){
-                dots+=this.cells[i][j].dots;
+    eachCell : function(fn, scope){
+        for(var i=0, l=this.col;i!=l;i++){
+            for(var j=0, k=this.row;j!=k;j++){
+                var ret = fn.call(scope || window, this.cells[i][j], i, j, this);
+                if(ret === false){
+                    return;
+                }
             }
         }
-        return dots;
     },
     createCells : function(){
         this.cells = [];
-        var i,l;
-        for(i=0, l=this.col;i!=l;i++){
+        for(var i = 0, l = this.col; i != l; i++){
             this.cells.push([]);
-            var j,k;
-            for(j=0, k=this.row;j!=k;j++){
+            for(var j = 0, k = this.row; j != k; j++){
+                var limit = 4;
+                if(i == 0 || i == this.col - 1) limit--;
+                if(j == 0 || j == this.row - 1) limit--;
+                
                 this.cells[i][j] = new Cell({
-                    limit : (i==0 || i==this.col-1) ? (
-                                (j==0 || j==this.row-1) ?
-                                    2 :
-                                    3
-                            ) :
-                                (j==0 || j==this.row-1) ?
-                                    3 :
-                                    4
+                    limit : limit
                 });
             }
         }
     },
     propagate : function(run){
-        if(run>100){
+        if(run > 100){
             throw {
-                type:'error',
-                error:'Too much recursion'
+                type  : 'error',
+                error : 'Too much recursion'
             };
         }
         var changed = false;
-        var i,l;
-        for(i=0, l=this.col;i!=l;i++){
-            var j,k;
-            for(j=0, k=this.row;j!=k;j++){
-                var cell = this.cells[i][j];
-                var of = cell.getOverFlowDots();//return 'limit' dots if more than 'limit' is stored and unstore these dots
-                var owner = cell.owner;
-                if(of>0){
-                    var neighborCells = this.findNeighbors(i,j);
-                    for(var nc=0, nl = neighborCells.length; nc!=nl; nc++){
-                        if(this.countDots() >= this.maxDots){
-                            //we diverge before that !
-                            //but do we always win before divergence ?
-                            throw {
-                                type:'error',
-                                error:'Grid full'
-                            };
-                        }
-                        changed = true;
-                        neighborCells[nc].addDot(owner);
-                        var winner = this.checkVictory();
-                        if(winner){
-                            throw {
-                                type:'gameover',
-                                winner:winner
-                            };
-                        }
-                    }
+        this.eachCell(function(cell, i, j){
+            var of = cell.getOverFlowDots();//return 'limit' dots if more than 'limit' is stored and unstore these dots
+            var owner = cell.owner;
+            if(of > 0){
+                var neighborCells = this.findNeighbors(i,j);
+                for(var nc = 0, nl = neighborCells.length; nc != nl; nc++){
+                    changed = true;
+                    neighborCells[nc].addDot(owner);
                 }
             }
+        }, this);
+        //check is there is a winner after each propagation
+        var winner = this.checkVictory();
+        if(winner){
+            throw {
+                type   : 'gameover',
+                winner : winner
+            };
         }
-        //recursively
+                    
+        //continue propagation if needed
         if(changed){
             return this.propagate(run+1);
         }
         return run;
     },
     checkVictory : function(){
-        var nextOwner,
-            winner = this.cells[0][0].owner;
-        if(winner == undefined){
-            return;
-        }
-        var i,l;
-        for(i=0, l=this.col;i!=l;i++){
-            var j,k;
-            for(j=0, k=this.row;j!=k;j++){
-                nextOwner = this.cells[i][j].owner;
-                if(winner != nextOwner){
-                    return;
-                }
+        //all cell must be owned, and by the same player
+        var winner = this.cells[0][0].owner,
+            owner;
+        if(!winner) return;
+        this.eachCell(function(cell){
+            owner = cell.owner;
+            if(!owner || winner != owner){
+                winner = null;
+                return false; //break loop
             }
-        }
+        });
         return winner;
     },
     findNeighbors : function(col, row){
         var neighbors=[], neighbor,
             c,r;
-        var trys = [
+        var tries = [
             [-1,0],
             [1,0],
             [0,1],
             [0,-1]
         ];
-        for(var i=0, l=trys.length;i!=l;i++){
-            c=trys[i][0];
-            r=trys[i][1];
+        for(var i=0, l=tries.length;i!=l;i++){
+            c=tries[i][0];
+            r=tries[i][1];
             try{
                 neighbor = this.cells[col+c][row+r];
             }catch(e){
