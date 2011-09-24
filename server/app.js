@@ -1,10 +1,17 @@
-var http   = require('http'),  
-    sys    = require('sys'),
-    io     = require('socket.io'),
+// requires
+var http       = require('http'),  
+    sys        = require('sys'),
+    io         = require('socket.io'),
     nodestatic = require('node-static');
 
-var staticServer = new nodestatic.Server('./client/'); // cwd must be '..'
+var JSJC = require('./JSJC');
 
+// games management
+var games   = new JSJC.GameList();
+var players = new JSJC.PlayerList();
+
+// webserver
+var staticServer = new nodestatic.Server('./client/'); // cwd must be '..'
 var server = http.createServer(function(req, res){ 
     // setup static server
     req.addListener('end', function(){
@@ -12,26 +19,46 @@ var server = http.createServer(function(req, res){
     });
 });
 server.listen(8000);
-  
+
 // socket.io 
-var socket = io.listen(server); 
-var clients = [];
-socket.on('connection', function(client){ 
-  // new client is here! 
-  clients.push(client);
-  
-  client.on('message', onClientMessage); 
-  client.on('disconnect', onClientDisconnect);
-  
-  // first message
-  client.send('hello');
-}); 
+io = io.listen(server);
 
-function onClientMessage(msg){
-    clients.forEach(function(client){
-        client.send(msg);
+io.sockets.on('connection', function (socket) {
+    // attach all event listeners
+    bindEvents(socket);
+    // create an associated Player
+    var player = new JSJC.Player();
+    players.add(player);
+    //store the player object in the socket
+    socket.set('player', player, function(){
+        //then, send the list of available games
+        socket.emit('gamelist', games.listAvailable());
     });
-}
+});
 
-function onClientDisconnect(){
+// in these handlers, this == the client socket
+var clientEventHandlers = {
+    'disconnect' : function(){
+        console.log('disconnect', arguments);
+    },
+    'joingame' : function(gameId){
+        console.log('joingame', gameId);
+    },
+    'newgame' : function(gameConfig){
+        var game = new JSJC.Game(gameConfig);
+        if(games.add(game)){
+            io.sockets.emit('gamelist', games.listAvailable()); // send to all
+        }
+    },
+    'adddot' : function(x, y){
+        console.log('adddot', x, y);
+    }
+};
+
+function bindEvents(socket){
+    for(var eventName in clientEventHandlers){
+        if(clientEventHandlers.hasOwnProperty(eventName)){
+            socket.on(eventName, clientEventHandlers[eventName]);
+        }
+    }
 }
