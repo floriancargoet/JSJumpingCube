@@ -36,29 +36,45 @@ io.sockets.on('connection', function (socket) {
     });
 });
 
-// in these handlers, this == the client socket
+/*
+ * in these handlers, this == the client socket, 
+ * first param is always the player
+ */
 var clientEventHandlers = {
-    'disconnect' : function(){
-        console.log('disconnect', arguments);
+    'disconnect' : function(player){
+        console.log('disconnect');
     },
-    'joingame' : function(gameId){
+    'joingame' : function(player, gameId){
         console.log('joingame', gameId);
     },
-    'newgame' : function(gameConfig){
+    'newgame' : function(player, gameConfig){
         var game = new JSJC.Game(gameConfig);
         if(games.add(game)){
             io.sockets.emit('gamelist', games.listAvailable()); // send to all
         }
     },
-    'adddot' : function(x, y){
+    'adddot' : function(player, x, y){
         console.log('adddot', x, y);
     }
 };
+// prepare handlers to be use as socket.io handlers
+Object.keys(clientEventHandlers).forEach(function(eventName){
+    //original handler
+    var handler = clientEventHandlers[eventName];
+    // wrap it
+    clientEventHandlers[eventName] = function(){
+        var args = arguments;
+        // retrieve the player object
+        this.get('player', function(err, player){
+            // then pass it to the original handler as first argument
+            Array.prototype.unshift.call(args, player);
+            handler.apply(this, args);
+        });
+    };
+});
 
 function bindEvents(socket){
-    for(var eventName in clientEventHandlers){
-        if(clientEventHandlers.hasOwnProperty(eventName)){
-            socket.on(eventName, clientEventHandlers[eventName]);
-        }
-    }
+    Object.keys(clientEventHandlers).forEach(function(eventName){
+        socket.on(eventName, clientEventHandlers[eventName]);
+    });
 }
